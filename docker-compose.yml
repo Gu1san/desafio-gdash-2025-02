@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   rabbitmq:
     image: rabbitmq:3-management
@@ -15,3 +13,19 @@ services:
     build: ./python-producer
     depends_on:
       - rabbitmq
+
+  go-worker:
+    build: ./go-worker
+    env_file:
+      - ./go-worker/.env
+    depends_on:
+      - rabbitmq
+      - nest-api
+
+  nest-api:
+    build: ./nest-api
+    container_name: nest-api
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./nest-api/.env
