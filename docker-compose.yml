@@ -14,13 +14,13 @@ services:
     depends_on:
       - rabbitmq
 
-  go-worker:
-    build: ./go-worker
-    env_file:
-      - ./go-worker/.env
-    depends_on:
-      - rabbitmq
-      - nest-api
+  mongo:
+    image: mongo:6
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
 
   nest-api:
     build: ./nest-api
@@ -29,3 +29,16 @@ services:
       - "3000:3000"
     env_file:
       - ./nest-api/.env
+    depends_on:
+      - mongo
+
+  go-worker:
+    build: ./go-worker
+    env_file:
+      - ./go-worker/.env
+    depends_on:
+      - rabbitmq
+      - nest-api
+
+volumes:
+  mongo-data:
