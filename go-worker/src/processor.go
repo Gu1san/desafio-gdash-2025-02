@@ -2,33 +2,28 @@ package main
 
 import (
 	"errors"
-	"fmt"
+	"strconv"
 	"time"
 )
 
 // WeatherPayload representa o corpo que enviaremos ao NestJS
 type WeatherPayload struct {
-	City       string  `json:"city,omitempty"`
-	Latitude   float64 `json:"latitude,omitempty"`
-	Longitude  float64 `json:"longitude,omitempty"`
-	Timestamp  int64   `json:"timestamp,omitempty"` // epoch
+	City        string  `json:"city,omitempty"`
+	Latitude    float64 `json:"latitude,omitempty"`
+	Longitude   float64 `json:"longitude,omitempty"`
+	Timestamp   int64   `json:"timestamp,omitempty"`
 	Temperature float64 `json:"temperature,omitempty"`
 	Humidity    float64 `json:"humidity,omitempty"`
 	Rain        float64 `json:"rain,omitempty"`
 	WindSpeed   float64 `json:"wind_speed,omitempty"`
 	CloudCover  float64 `json:"cloud_cover,omitempty"`
 	Source      string  `json:"source,omitempty"`
-	Raw         any     `json:"raw,omitempty"` // opcional: guarda raw para debug
+	Raw         any     `json:"raw,omitempty"`
 }
 
-// ProcessWeather valida e normaliza o raw recebido do Python
 func ProcessWeather(raw map[string]interface{}) (*WeatherPayload, error) {
-	// Exemplo: extrair campos e converter tipos com segurança
-	getFloat := func(key string) (float64, bool) {
-		v, ok := raw[key]
-		if !ok || v == nil {
-			return 0, false
-		}
+
+	getFloat := func(v any) (float64, bool) {
 		switch t := v.(type) {
 		case float64:
 			return t, true
@@ -39,45 +34,51 @@ func ProcessWeather(raw map[string]interface{}) (*WeatherPayload, error) {
 		case int64:
 			return float64(t), true
 		case string:
-			// tenta parse simplificado (não implementado aqui)...
+			f, err := strconv.ParseFloat(t, 64)
+			if err == nil {
+				return f, true
+			}
 			return 0, false
 		default:
 			return 0, false
 		}
 	}
 
-	// city
-	city := ""
-	if v, ok := raw["city"].(string); ok {
-		city = v
+	getFloatKey := func(key string) (float64, bool) {
+		if v, ok := raw[key]; ok {
+			return getFloat(v)
+		}
+		return 0, false
 	}
 
-	lat, _ := getFloat("latitude")
-	lon, _ := getFloat("longitude")
-	temp, hasTemp := getFloat("temperature")
-	humidity, _ := getFloat("humidity")
-	rain, _ := getFloat("rain")
-	wind, _ := getFloat("wind_speed")
-	cloud, _ := getFloat("cloud_cover")
+	city, _ := raw["city"].(string)
+	lat, _ := getFloatKey("latitude")
+	lon, _ := getFloatKey("longitude")
+	temp, hasTemp := getFloatKey("temperature")
+	humidity, _ := getFloatKey("humidity")
+	rain, _ := getFloatKey("rain")
+	wind, _ := getFloatKey("wind_speed")
+	cloud, _ := getFloatKey("cloud_cover")
 
-	// timestamp: pode vir como número (epoch) ou string. Tratamos o caso numérico.
+	// timestamp
 	var ts int64
-	if t, ok := raw["timestamp"].(float64); ok {
+	switch t := raw["timestamp"].(type) {
+	case float64:
 		ts = int64(t)
-	} else if t, ok := raw["timestamp"].(int64); ok {
+	case int64:
 		ts = t
-	} else {
-		// se não existir timestamp, atribui agora
+	case string:
+		parsed, err := strconv.ParseInt(t, 10, 64)
+		if err == nil {
+			ts = parsed
+		}
+	}
+	if ts == 0 {
 		ts = time.Now().Unix()
 	}
 
-	// validação simples: temperatura e latitude/longitude são importantes
 	if !hasTemp {
 		return nil, errors.New("campo 'temperature' ausente ou inválido")
-	}
-	if lat == 0 && lon == 0 {
-		// permite mas avisa
-		return nil, fmt.Errorf("latitude/longitude ausentes ou zero")
 	}
 
 	payload := &WeatherPayload{

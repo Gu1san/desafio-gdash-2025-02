@@ -12,7 +12,7 @@ func StartConsumer(amqpURL, queueName, nestURL string) error {
 	if err != nil {
 		return err
 	}
-	// Não fechamos a conexão aqui: deixamos o processo rodando
+
 	ch, err := conn.Channel()
 	if err != nil {
 		return err
@@ -20,12 +20,12 @@ func StartConsumer(amqpURL, queueName, nestURL string) error {
 
 	// Garante que a fila existe
 	_, err = ch.QueueDeclare(
-		queueName, // name
-		true,      // durable
-		false,     // delete when unused
-		false,     // exclusive
-		false,     // no-wait
-		nil,       // arguments
+		queueName,
+		true,
+		false,
+		false,
+		false,
+		nil,
 	)
 	if err != nil {
 		return err
@@ -33,11 +33,11 @@ func StartConsumer(amqpURL, queueName, nestURL string) error {
 
 	msgs, err := ch.Consume(
 		queueName,
-		"",    // consumer
-		false, // autoAck = false -> faremos ack manual
-		false, // exclusive
-		false, // noLocal
-		false, // noWait
+		"",
+		false, // autoAck = false -> ack manual
+		false,
+		false,
+		false,
 		nil,
 	)
 	if err != nil {
@@ -46,19 +46,18 @@ func StartConsumer(amqpURL, queueName, nestURL string) error {
 
 	log.Println("Consumer iniciado. Aguardando mensagens...")
 
-	// Processa mensagens sequencialmente (para começar). Para paralelismo, roda workers em goroutines.
 	for d := range msgs {
 		log.Printf("Mensagem recebida: %s", string(d.Body))
 
-		// Parse JSON -> model intermediário
+		// Parse
 		var raw map[string]interface{}
 		if err := json.Unmarshal(d.Body, &raw); err != nil {
 			log.Printf("JSON inválido: %v. NACK sem requeue.", err)
-			_ = d.Nack(false, false) // erro permanente: descarta ou vai para DLQ
+			_ = d.Nack(false, false)
 			continue
 		}
 
-		// Validação / transformação
+		// Normalização
 		normalized, err := ProcessWeather(raw)
 		if err != nil {
 			log.Printf("Validação falhou: %v. NACK sem requeue.", err)
@@ -66,24 +65,33 @@ func StartConsumer(amqpURL, queueName, nestURL string) error {
 			continue
 		}
 
-		// Envia para API NestJS (com retry local)
+		// 1️⃣ PRIMEIRO: Envia pro Nest (com retry)
 		err = PostToNestWithRetry(nestURL, normalized)
 		if err != nil {
-			// após retries locais, se ainda falhar, Nack com requeue pra tentar novamente
 			log.Printf("Falha ao enviar para NestAPI: %v. NACK com requeue.", err)
 			_ = d.Nack(false, true)
 			continue
 		}
 
-		// Se tudo ok, confirma a mensagem
-		if err := d.Ack(false); err != nil {
-			log.Printf("Erro no ACK: %v", err)
-			// não sabemos o estado, mas já enviamos pra API; em caso extremo, duplicação pode ocorrer
-		} else {
-			log.Println("Mensagem processada com sucesso e ACK enviada.")
+		log.Println("✔ Nest recebeu os dados com sucesso. Prosseguindo para outras rotas...")
+
+		// 2️⃣ DEPOIS: processa outras rotas
+		err = processOtherRoutes(normalized)
+		if err != nil {
+			log.Printf("Erro ao processar outras rotas: %v", err)
+			// Aqui você decide:
+			// - Ou ignora (não requeue) porque o Nest já recebeu
+			// - Ou manda para DLQ manual
+			// - Ou só loga e segue
 		}
 
-		// Pequena pausa para evitar burst (opcional)
+		// ACK final
+		if err := d.Ack(false); err != nil {
+			log.Printf("Erro no ACK: %v", err)
+		} else {
+			log.Println("Mensagem marcada como processada (ACK).")
+		}
+
 		time.Sleep(100 * time.Millisecond)
 	}
 

@@ -17,18 +17,21 @@ func PostToNestWithRetry(url string, payload *WeatherPayload) error {
 
 	var lastErr error
 	for i := 0; i < retries; i++ {
+
 		if i > 0 {
-			sleep := time.Duration(delay*(1<<uint(i-1))) * time.Second // backoff exponencial
-			log.Printf("Aguardando %v antes da próxima tentativa...", sleep)
+			sleep := time.Duration(delay*(1<<uint(i-1))) * time.Second
+			log.Printf("[NestRetry] Aguardando %v antes da próxima tentativa...", sleep)
 			time.Sleep(sleep)
 		}
-		err := postToNest(url, payload)
-		if err == nil {
+
+		if err := postToNest(url, payload); err == nil {
 			return nil
+		} else {
+			lastErr = err
+			log.Printf("[NestRetry] Tentativa %d/%d falhou: %v", i+1, retries, err)
 		}
-		lastErr = err
-		log.Printf("Tentativa %d/%d falhou: %v", i+1, retries, err)
 	}
+
 	return fmt.Errorf("falha após %d tentativas: %w", retries, lastErr)
 }
 
@@ -36,13 +39,18 @@ func postToNest(url string, payload *WeatherPayload) error {
 	client := &http.Client{
 		Timeout: time.Duration(getenvInt("HTTP_TIMEOUT_SECONDS", 10)) * time.Second,
 	}
-	body, _ := json.Marshal(payload)
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
 	if err != nil {
 		return err
 	}
+
 	req.Header.Set("Content-Type", "application/json")
-	// Se sua API exigir autenticação, adicione aqui: req.Header.Set("Authorization", "Bearer ...")
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -51,17 +59,15 @@ func postToNest(url string, payload *WeatherPayload) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		log.Printf("POST para Nest OK (status %d).", resp.StatusCode)
+		log.Printf("[Nest] OK %d", resp.StatusCode)
 		return nil
 	}
 
-	// Se status 4xx -> erro permanente (não retry local)
 	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
-		return fmt.Errorf("erro permanente do servidor: %d", resp.StatusCode)
+		return fmt.Errorf("erro permanente: %d", resp.StatusCode)
 	}
 
-	// 5xx -> erro temporário (retry local)
-	return fmt.Errorf("status inesperado: %d", resp.StatusCode)
+	return fmt.Errorf("erro temporário: %d", resp.StatusCode)
 }
 
 func getenvInt(key string, fallback int) int {
