@@ -12,11 +12,11 @@ type WeatherPayload struct {
 	Latitude    float64 `json:"latitude,omitempty"`
 	Longitude   float64 `json:"longitude,omitempty"`
 	Timestamp   int64   `json:"timestamp,omitempty"`
-	Temperature float64 `json:"temperature,omitempty"`
-	Humidity    float64 `json:"humidity,omitempty"`
-	Rain        float64 `json:"rain,omitempty"`
-	WindSpeed   float64 `json:"wind_speed,omitempty"`
-	CloudCover  float64 `json:"cloud_cover,omitempty"`
+	Temperature float64 `json:"temperature"`
+	Humidity    float64 `json:"humidity"`
+	Rain        float64 `json:"rain"`
+	WindSpeed   float64 `json:"wind_speed"`
+	CloudCover  float64 `json:"cloud_cover"`
 	Source      string  `json:"source,omitempty"`
 	Raw         any     `json:"raw,omitempty"`
 }

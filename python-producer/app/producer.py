@@ -50,6 +50,8 @@ def fetch_weather():
     responses = openmeteo.weather_api(url, params=params)
     response = responses[0]
 
+    print(f"[OK] Dados de clima obtidos: {response}")
+
     current = response.Current()
 
     weather_data = {
