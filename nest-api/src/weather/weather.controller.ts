@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Get, Post, Body, Res } from '@nestjs/common';
 import { WeatherService } from './weather.service';
 import { CreateWeatherLogDto } from './dto/create-weather-log.dto';
 import { WeatherLog } from './schemas/weather-log.schema';
+import { Response } from 'express';
 
 @Controller('weather')
 export class WeatherController {
@@ -15,5 +16,37 @@ export class WeatherController {
   @Get('logs')
   async findAll(): Promise<WeatherLog[]> {
     return this.weatherService.findAll();
+  }
+
+  @Get('export.csv')
+  async exportCsv(@Res() res: Response) {
+    const csv = await this.weatherService.exportCsv();
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=weather.csv');
+    res.send(csv);
+  }
+
+  @Get('export.xlsx')
+  async exportXlsx(@Res() res: Response) {
+    const { buffer } = await this.weatherService.exportXlsx();
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+
+    res.setHeader('Content-Disposition', 'attachment; filename=weather.xlsx');
+    res.send(buffer);
+  }
+
+  @Get('insights')
+  async getInsights() {
+    return this.weatherService.getInsights();
+  }
+
+  @Post('insights')
+  async generateInsights() {
+    return this.weatherService.generateInsights();
   }
 }
