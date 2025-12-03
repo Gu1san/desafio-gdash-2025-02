@@ -5,6 +5,8 @@ import { WeatherModule } from './weather/weather.module';
 import { HealthModule } from './health/health.module';
 //import { UsersModule } from "./users/users.module";
 //import { AuthModule } from "./auth/auth.module";
+import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -16,6 +18,10 @@ import { HealthModule } from './health/health.module';
     ),
 
     WeatherModule,
+
+    UsersModule,
+
+    AuthModule,
     //UsersModule,
     //AuthModule,
   ],
