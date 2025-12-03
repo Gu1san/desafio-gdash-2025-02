@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Res, UseGuards } from '@nestjs/common';
 import { WeatherService } from './weather.service';
 import { CreateWeatherLogDto } from './dto/create-weather-log.dto';
 import { WeatherLog } from './schemas/weather-log.schema';
 import { Response } from 'express';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('weather')
 export class WeatherController {
@@ -40,6 +41,7 @@ export class WeatherController {
     res.send(buffer);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Get('insights')
   async getInsights() {
     return this.weatherService.getInsights();
