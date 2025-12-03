@@ -6,6 +6,7 @@ import { CreateWeatherLogDto } from './dto/create-weather-log.dto';
 import * as json2csv from 'json2csv';
 import * as ExcelJS from 'exceljs';
 import { WeatherInsights } from './schemas/insights.schema';
+import OpenAI from 'openai';
 
 @Injectable()
 export class WeatherService {
@@ -15,6 +16,11 @@ export class WeatherService {
     @InjectModel(WeatherInsights.name)
     private insightsModel: Model<WeatherInsights>,
   ) {}
+
+  private openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+    baseURL: 'https://api.groq.com/openai/v1',
+  });
 
   async create(dto: CreateWeatherLogDto): Promise<WeatherLog> {
     return this.weatherModel.create(dto);
@@ -48,33 +54,51 @@ export class WeatherService {
       throw new Error('Nenhum registro válido encontrado para gerar insights.');
     }
 
-    // ---- MOCK DE IA / PLACEHOLDER ----
-    // Regra simples só para ter funcionamento real
-    const avgTemp =
-      logs.reduce((sum, l) => sum + l.temperature, 0) / logs.length;
+    const dataForAI = validLogs.map((l) => ({
+      city: l.city,
+      timestamp: l.timestamp,
+      temperature: l.temperature,
+      humidity: l.humidity,
+      rain: l.rain,
+      wind_speed: l.wind_speed,
+      cloud_cover: l.cloud_cover,
+    }));
 
-    const rainDays = logs.filter((l) => l.rain > 0).length;
-    const rainProb = Math.round((rainDays / logs.length) * 100);
+    const prompt = `
+      Você é um especialista em climatologia.
+      Com base no dataset abaixo, gere insights acionáveis.
 
-    const hottest = validLogs.reduce((a, b) =>
-      a.temperature > b.temperature ? a : b,
-    );
+      Retorne APENAS um JSON no seguinte formato:
 
-    const ts = Number(hottest.timestamp);
+      {
+        "summary": string,
+        "hottestDay": string (ISO date),
+        "rainProbability": number,
+        "tempTrend": "Alta" | "Moderada" | "Baixa"
+      }
 
-    if (!ts || Number.isNaN(ts)) {
-      throw new Error(`Timestamp inválido recebido: ${hottest.timestamp}`);
+      DATASET:
+      ${JSON.stringify(dataForAI, null, 2)}
+      `;
+
+    const aiResponse = await this.openai.chat.completions.create({
+      model: process.env.MODEL_WEATHER ?? 'openai/gpt-oss-120b',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+    });
+
+    const content = aiResponse?.choices?.[0]?.message?.content;
+    if (!content || typeof content !== 'string') {
+      throw new Error('OpenAI response has no textual content to parse.');
     }
 
-    const date = new Date(ts * 1000).toISOString();
+    const insightsJSON = JSON.parse(content);
 
     const insights = await this.insightsModel.create({
-      summary: `Temperatura média: ${avgTemp.toFixed(
-        1,
-      )}°C. Probabilidade de chuva: ${rainProb}%.`,
-      hottestDay: new Date(date).toISOString(),
-      rainProbability: rainProb,
-      tempTrend: avgTemp >= 25 ? 'Alta' : avgTemp >= 18 ? 'Moderada' : 'Baixa',
+      summary: insightsJSON.summary,
+      hottestDay: insightsJSON.hottestDay,
+      rainProbability: insightsJSON.rainProbability,
+      tempTrend: insightsJSON.tempTrend,
     });
 
     return insights;
