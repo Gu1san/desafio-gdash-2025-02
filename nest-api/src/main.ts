@@ -18,7 +18,10 @@ async function bootstrap() {
   );
 
   // Habilita CORS para permitir acesso de outros serviços/Docker
-  app.enableCors();
+  app.enableCors({
+    origin: '*',
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
 
   // Prefixo global: http://localhost:3000/api/*
   app.setGlobalPrefix('api');

@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsNumber, IsString } from 'class-validator';
+import { IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
 
 export class CreateWeatherLogDto {
   @IsString()
@@ -39,4 +39,8 @@ export class CreateWeatherLogDto {
 
   @IsString()
   source!: string;
+
+  @IsOptional()
+  @IsObject()
+  raw?: any;
 }

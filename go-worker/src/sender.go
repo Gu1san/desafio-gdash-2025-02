@@ -41,6 +41,8 @@ func postToNest(url string, payload *WeatherPayload) error {
 	}
 
 	body, err := json.Marshal(payload)
+	log.Println("DEBUG payload:", string(body))
+
 	if err != nil {
 		return err
 	}
