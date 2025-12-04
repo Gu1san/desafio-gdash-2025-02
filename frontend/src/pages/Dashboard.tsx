@@ -55,8 +55,7 @@ export default function Dashboard() {
                 <strong>Dia mais quente:</strong> {insights.hottestDay}
               </p>
               <p>
-                <strong>Probabilidade de chuva:</strong>{" "}
-                {insights.rainProbability}%
+                <strong>Precipitação:</strong> {insights.precipitation}mm
               </p>
               <p>
                 <strong>Tendência de temperatura:</strong> {insights.tempTrend}
@@ -104,7 +103,11 @@ export default function Dashboard() {
           <CardTitle>Chuva (mm)</CardTitle>
         </CardHeader>
         <CardContent>
-          <Chart data={weather} dataKey="rain" formatDate={formatDate} />
+          <Chart
+            data={weather}
+            dataKey="precipitation"
+            formatDate={formatDate}
+          />
         </CardContent>
       </Card>
 

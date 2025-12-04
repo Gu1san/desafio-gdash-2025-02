@@ -1,6 +1,6 @@
 export interface IAIInsights {
   summary: string;
   hottestDay: string;
-  rainProbability: string;
+  precipitation: string;
   tempTrend: string;
 }

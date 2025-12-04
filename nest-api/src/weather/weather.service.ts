@@ -59,9 +59,10 @@ export class WeatherService {
       timestamp: l.timestamp,
       temperature: l.temperature,
       humidity: l.humidity,
-      rain: l.rain,
       wind_speed: l.wind_speed,
       cloud_cover: l.cloud_cover,
+      precipitation: l.precipitation,
+      apparent_temperature: l.apparent_temperature,
     }));
 
     const prompt = `
@@ -73,8 +74,9 @@ export class WeatherService {
       {
         "summary": string,
         "hottestDay": string (ISO date),
-        "rainProbability": number,
-        "tempTrend": "Alta" | "Moderada" | "Baixa"
+        "precipitation": number,
+        "tempTrend": "Alta" | "Moderada" | "Baixa",
+        "apparentTemperature": number
       }
 
       DATASET:
@@ -97,8 +99,9 @@ export class WeatherService {
     const insights = await this.insightsModel.create({
       summary: insightsJSON.summary,
       hottestDay: insightsJSON.hottestDay,
-      rainProbability: insightsJSON.rainProbability,
+      precipitation: insightsJSON.precipitation,
       tempTrend: insightsJSON.tempTrend,
+      apparentTemperature: insightsJSON.apparentTemperature,
     });
 
     return insights;
@@ -114,9 +117,10 @@ export class WeatherService {
       'timestamp',
       'temperature',
       'humidity',
-      'rain',
       'wind_speed',
       'cloud_cover',
+      'precipitation',
+      'apparent_temperature',
       'source',
       'createdAt',
     ];
@@ -137,9 +141,14 @@ export class WeatherService {
       { header: 'Timestamp', key: 'timestamp', width: 15 },
       { header: 'Temperature', key: 'temperature', width: 14 },
       { header: 'Humidity', key: 'humidity', width: 10 },
-      { header: 'Rain', key: 'rain', width: 10 },
       { header: 'Wind Speed', key: 'wind_speed', width: 12 },
       { header: 'Cloud Cover', key: 'cloud_cover', width: 12 },
+      { header: 'Precipitation', key: 'precipitation', width: 10 },
+      {
+        header: 'Appearent Temperature',
+        key: 'apparent_temperature',
+        width: 12,
+      },
       { header: 'Source', key: 'source', width: 15 },
       { header: 'Created At', key: 'createdAt', width: 22 },
     ];

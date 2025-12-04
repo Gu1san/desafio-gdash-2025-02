@@ -8,18 +8,20 @@ import (
 
 // WeatherPayload representa o corpo que enviaremos ao NestJS
 type WeatherPayload struct {
-	City        string  `json:"city,omitempty"`
-	Latitude    float64 `json:"latitude,omitempty"`
-	Longitude   float64 `json:"longitude,omitempty"`
-	Timestamp   int64   `json:"timestamp,omitempty"`
-	Temperature float64 `json:"temperature"`
-	Humidity    float64 `json:"humidity"`
-	Rain        float64 `json:"rain"`
-	WindSpeed   float64 `json:"wind_speed"`
-	CloudCover  float64 `json:"cloud_cover"`
-	Source      string  `json:"source,omitempty"`
-	Raw         any     `json:"raw,omitempty"`
+    City               string  `json:"city,omitempty"`
+    Latitude           float64 `json:"latitude,omitempty"`
+    Longitude          float64 `json:"longitude,omitempty"`
+    Timestamp          int64   `json:"timestamp,omitempty"`
+    Temperature        float64 `json:"temperature"`
+    Humidity           float64 `json:"humidity"`
+    WindSpeed          float64 `json:"wind_speed"`
+    CloudCover         float64 `json:"cloud_cover"`
+    Precipitation      float64 `json:"precipitation"`
+    ApparentTemperature float64 `json:"apparent_temperature"`
+    Source             string  `json:"source,omitempty"`
+    Raw                any     `json:"raw,omitempty"`
 }
+
 
 func ProcessWeather(raw map[string]interface{}) (*WeatherPayload, error) {
 
@@ -56,9 +58,10 @@ func ProcessWeather(raw map[string]interface{}) (*WeatherPayload, error) {
 	lon, _ := getFloatKey("longitude")
 	temp, hasTemp := getFloatKey("temperature")
 	humidity, _ := getFloatKey("humidity")
-	rain, _ := getFloatKey("rain")
 	wind, _ := getFloatKey("wind_speed")
 	cloud, _ := getFloatKey("cloud_cover")
+	precip, _ := getFloatKey("precipitation")
+	apparent, _ := getFloatKey("apparent_temperature")
 
 	// timestamp
 	var ts int64
@@ -88,9 +91,10 @@ func ProcessWeather(raw map[string]interface{}) (*WeatherPayload, error) {
 		Timestamp:   ts,
 		Temperature: temp,
 		Humidity:    humidity,
-		Rain:        rain,
 		WindSpeed:   wind,
 		CloudCover:  cloud,
+		Precipitation: precip,
+		ApparentTemperature: apparent,
 		Source:      "python-producer",
 		Raw:         raw,
 	}

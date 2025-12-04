@@ -10,10 +10,13 @@ export class WeatherInsights extends Document {
   hottestDay!: string;
 
   @Prop({ required: true })
-  rainProbability!: number;
+  precipitation!: number;
 
   @Prop({ required: true })
   tempTrend!: string;
+
+  @Prop({ required: true })
+  apparentTemperature!: number;
 }
 
 export const WeatherInsightsSchema =

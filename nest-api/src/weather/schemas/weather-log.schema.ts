@@ -22,13 +22,16 @@ export class WeatherLog extends Document {
   humidity!: number;
 
   @Prop({ required: true })
-  rain!: number;
-
-  @Prop({ required: true })
   wind_speed!: number;
 
   @Prop({ required: true })
   cloud_cover!: number;
+
+  @Prop({ required: true })
+  precipitation!: number;
+
+  @Prop({ required: true })
+  apparent_temperature!: number;
 
   @Prop({ required: true })
   source!: string;

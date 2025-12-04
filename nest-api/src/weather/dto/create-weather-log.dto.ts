@@ -27,15 +27,19 @@ export class CreateWeatherLogDto {
 
   @Type(() => Number)
   @IsNumber()
-  rain!: number;
-
-  @Type(() => Number)
-  @IsNumber()
   wind_speed!: number;
 
   @Type(() => Number)
   @IsNumber()
   cloud_cover!: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  precipitation!: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  apparent_temperature!: number;
 
   @IsString()
   source!: string;
