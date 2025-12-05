@@ -26,8 +26,8 @@ export class WeatherService {
     return this.weatherModel.create(dto);
   }
 
-  async findAll(): Promise<WeatherLog[]> {
-    return this.weatherModel.find().exec();
+  async getLatest(): Promise<WeatherLog | null> {
+    return this.weatherModel.findOne().sort({ createdAt: -1 }).lean();
   }
 
   async getInsights() {

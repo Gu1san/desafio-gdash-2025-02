@@ -15,8 +15,12 @@ export class WeatherController {
   }
 
   @Get('logs')
-  async findAll(): Promise<WeatherLog[]> {
-    return this.weatherService.findAll();
+  async getLatest(): Promise<WeatherLog> {
+    const res = await this.weatherService.getLatest();
+    if (res == null) {
+      throw new Error('No weather logs found');
+    }
+    return res;
   }
 
   @Get('export.csv')

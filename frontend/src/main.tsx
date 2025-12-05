@@ -6,31 +6,34 @@ import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
 import ProtectedRoute from "./components/ProtectedRoute";
 import "./styles/index.css";
-import { AuthProvider } from "./hooks/useAuth";
+import { AuthProvider } from "./contexts/AuthContext";
+import { WeatherProvider } from "./contexts/WeatherContext";
 import App from "./App";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
+      <WeatherProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
 
-          {/* Layout com sidebar */}
-          <Route
-            element={
-              <ProtectedRoute>
-                <App />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/users" element={<Users />} />
-            <Route path="/weather" element={<div>Weather</div>} />
-            <Route path="/settings" element={<div>Settings</div>} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+            {/* Layout com sidebar */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <App />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/users" element={<Users />} />
+              <Route path="/weather" element={<div>Weather</div>} />
+              <Route path="/settings" element={<div>Settings</div>} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </WeatherProvider>
     </AuthProvider>
   </React.StrictMode>
 );
