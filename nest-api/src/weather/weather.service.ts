@@ -43,45 +43,48 @@ export class WeatherService {
     const logs = await this.weatherModel.find().lean();
     if (!logs.length) return { error: 'No data available yet' };
 
+    // Mantém apenas registros válidos contendo "current"
     const validLogs = logs.filter(
       (l) =>
         l &&
-        typeof l.temperature === 'number' &&
-        typeof l.timestamp !== 'undefined',
+        l.current &&
+        typeof l.current.temperature === 'number' &&
+        typeof l.current.timestamp !== 'undefined',
     );
 
     if (validLogs.length === 0) {
       throw new Error('Nenhum registro válido encontrado para gerar insights.');
     }
 
+    // Prepara dataset que será enviado para a IA
     const dataForAI = validLogs.map((l) => ({
       city: l.city,
-      timestamp: l.timestamp,
-      temperature: l.temperature,
-      humidity: l.humidity,
-      wind_speed: l.wind_speed,
-      cloud_cover: l.cloud_cover,
-      precipitation: l.precipitation,
-      apparent_temperature: l.apparent_temperature,
+      timestamp: l.current!.timestamp,
+      temperature: l.current!.temperature,
+      humidity: l.current!.humidity,
+      wind_speed: l.current!.wind_speed,
+      cloud_cover: l.current!.cloud_cover,
+      precipitation: l.current!.precipitation,
+      apparent_temperature: l.current!.apparent_temperature,
     }));
 
     const prompt = `
-      Você é um especialista em climatologia.
-      Com base no dataset abaixo, gere insights acionáveis.
+    Você é um especialista em climatologia.
+    Com base no dataset abaixo, gere insights acionáveis.
 
-      Retorne APENAS um JSON no seguinte formato:
+    Retorne APENAS um JSON no seguinte formato:
 
-      {
-        "summary": string,
-        "hottestDay": string (ISO date),
-        "precipitation": number,
-        "tempTrend": "Alta" | "Moderada" | "Baixa",
-        "apparentTemperature": number
-      }
+    {
+      "summary": string,
+      "hottestDay": string (ISO date),
+      "precipitation": number,
+      "tempTrend": "Alta" | "Moderada" | "Baixa",
+      "apparentTemperature": number
+    }
 
-      DATASET:
-      ${JSON.stringify(dataForAI, null, 2)}
-      `;
+    DATASET:
+    ${JSON.stringify(dataForAI, null, 2)}
+  `;
 
     const aiResponse = await this.openai.chat.completions.create({
       model: process.env.MODEL_WEATHER ?? 'openai/gpt-oss-120b',

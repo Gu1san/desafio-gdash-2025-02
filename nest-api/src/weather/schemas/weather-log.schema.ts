@@ -1,40 +1,35 @@
-import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument } from 'mongoose';
 
-@Schema({ timestamps: true })
-export class WeatherLog extends Document {
-  @Prop({ required: true })
-  city!: string;
+export type WeatherLogDocument = HydratedDocument<WeatherLog>;
 
-  @Prop({ required: true })
-  latitude!: number;
+@Schema({
+  timestamps: true,
+})
+export class WeatherLog {
+  @Prop()
+  city?: string;
 
-  @Prop({ required: true })
-  longitude!: number;
+  @Prop()
+  latitude?: number;
 
-  @Prop({ required: true })
-  timestamp!: number;
+  @Prop()
+  longitude?: number;
 
-  @Prop({ required: true })
-  temperature!: number;
+  @Prop({ type: Object })
+  current?: Record<string, any>;
 
-  @Prop({ required: true })
-  humidity!: number;
+  @Prop({ type: [Object] })
+  hourly?: Record<string, any>[];
 
-  @Prop({ required: true })
-  wind_speed!: number;
+  @Prop({ type: [Object] })
+  daily?: Record<string, any>[];
 
-  @Prop({ required: true })
-  cloud_cover!: number;
+  @Prop({ type: Object })
+  raw?: any;
 
-  @Prop({ required: true })
-  precipitation!: number;
-
-  @Prop({ required: true })
-  apparent_temperature!: number;
-
-  @Prop({ required: true })
-  source!: string;
+  @Prop()
+  source?: string;
 }
 
 export const WeatherLogSchema = SchemaFactory.createForClass(WeatherLog);

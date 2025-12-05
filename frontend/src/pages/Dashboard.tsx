@@ -10,11 +10,12 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import type { IAIInsights } from "@/types/weather";
+import type { IAIInsights, IWeatherHour, IWeatherLog } from "@/types/weather";
 import { api } from "@/lib/api";
+import { fetchWeatherForecast } from "@/services/openMeteoService";
 
 export default function Dashboard() {
-  const [weather, setWeather] = useState([]);
+  const [weather, setWeather] = useState<IWeatherHour[]>([]);
   const [insights, setInsights] = useState<IAIInsights>();
 
   const token = localStorage.getItem("token") ?? undefined;
@@ -22,12 +23,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const logs = await fetch("http://localhost:3000/api/weather/logs").then(
-        (r) => r.json()
-      );
-      const ai = await request("/weather/insights");
-      setWeather(logs);
-      setInsights(ai);
+      const forecast = await fetchWeatherForecast();
+      //const ai = await request("/weather/insights");
+      setWeather(forecast.hours);
+      //setInsights(ai);
     };
     fetchData();
   }, []);

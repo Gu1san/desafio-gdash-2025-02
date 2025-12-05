@@ -6,7 +6,6 @@ import (
 	"time"
 )
 
-// StartConsumer conecta no RabbitMQ e começa a consumir mensagens
 func StartConsumer(amqpURL, queueName, nestURL string) error {
 	conn, err := connectWithRetry(amqpURL)
 	if err != nil {
@@ -18,15 +17,7 @@ func StartConsumer(amqpURL, queueName, nestURL string) error {
 		return err
 	}
 
-	// Garante que a fila existe
-	_, err = ch.QueueDeclare(
-		queueName,
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
+	_, err = ch.QueueDeclare(queueName, true, false, false, false, nil)
 	if err != nil {
 		return err
 	}
@@ -34,7 +25,7 @@ func StartConsumer(amqpURL, queueName, nestURL string) error {
 	msgs, err := ch.Consume(
 		queueName,
 		"",
-		false, // autoAck = false -> ack manual
+		false, // manual ack
 		false,
 		false,
 		false,
@@ -49,50 +40,34 @@ func StartConsumer(amqpURL, queueName, nestURL string) error {
 	for d := range msgs {
 		log.Printf("Mensagem recebida: %s", string(d.Body))
 
-		// Parse
 		var raw map[string]interface{}
 		if err := json.Unmarshal(d.Body, &raw); err != nil {
-			log.Printf("JSON inválido: %v. NACK sem requeue.", err)
+			log.Printf("JSON inválido: %v", err)
 			_ = d.Nack(false, false)
 			continue
 		}
 
-		// Normalização
 		normalized, err := ProcessWeather(raw)
 		if err != nil {
-			log.Printf("Validação falhou: %v. NACK sem requeue.", err)
+			log.Printf("Erro ao processar weather: %v", err)
 			_ = d.Nack(false, false)
 			continue
 		}
 
-		// 1️⃣ PRIMEIRO: Envia pro Nest (com retry)
+		// Envia ao Nest
 		err = PostToNestWithRetry(nestURL, normalized)
 		if err != nil {
-			log.Printf("Falha ao enviar para NestAPI: %v. NACK com requeue.", err)
+			log.Printf("Falha ao enviar ao Nest: %v", err)
 			_ = d.Nack(false, true)
 			continue
 		}
 
-		log.Println("✔ Nest recebeu os dados com sucesso. Prosseguindo para outras rotas...")
+		log.Println("✔ Dados enviados ao Nest com sucesso.")
 
-		// 2️⃣ DEPOIS: processa outras rotas
-		err = processOtherRoutes(normalized)
-		if err != nil {
-			log.Printf("Erro ao processar outras rotas: %v", err)
-			// Aqui você decide:
-			// - Ou ignora (não requeue) porque o Nest já recebeu
-			// - Ou manda para DLQ manual
-			// - Ou só loga e segue
-		}
+		// outras rotas poderiam vir aqui…
 
-		// ACK final
-		if err := d.Ack(false); err != nil {
-			log.Printf("Erro no ACK: %v", err)
-		} else {
-			log.Println("Mensagem marcada como processada (ACK).")
-		}
-
-		time.Sleep(100 * time.Millisecond)
+		_ = d.Ack(false)
+		time.Sleep(50 * time.Millisecond)
 	}
 
 	return nil

@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func PostToNestWithRetry(url string, payload *WeatherPayload) error {
+func PostToNestWithRetry(url string, payload any) error {
 	retries := getenvInt("POST_RETRIES", 3)
 	delay := getenvInt("POST_RETRY_DELAY_SECONDS", 2)
 
@@ -35,7 +35,7 @@ func PostToNestWithRetry(url string, payload *WeatherPayload) error {
 	return fmt.Errorf("falha após %d tentativas: %w", retries, lastErr)
 }
 
-func postToNest(url string, payload *WeatherPayload) error {
+func postToNest(url string, payload any) error {
 	client := &http.Client{
 		Timeout: time.Duration(getenvInt("HTTP_TIMEOUT_SECONDS", 10)) * time.Second,
 	}

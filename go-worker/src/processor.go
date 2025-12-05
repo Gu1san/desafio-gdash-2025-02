@@ -3,100 +3,179 @@ package main
 import (
 	"errors"
 	"strconv"
-	"time"
 )
 
-// WeatherPayload representa o corpo que enviaremos ao NestJS
-type WeatherPayload struct {
-    City               string  `json:"city,omitempty"`
-    Latitude           float64 `json:"latitude,omitempty"`
-    Longitude          float64 `json:"longitude,omitempty"`
-    Timestamp          int64   `json:"timestamp,omitempty"`
-    Temperature        float64 `json:"temperature"`
-    Humidity           float64 `json:"humidity"`
-    WindSpeed          float64 `json:"wind_speed"`
-    CloudCover         float64 `json:"cloud_cover"`
-    Precipitation      float64 `json:"precipitation"`
-    ApparentTemperature float64 `json:"apparent_temperature"`
-    Source             string  `json:"source,omitempty"`
-    Raw                any     `json:"raw,omitempty"`
+// ------------------------------
+// Tradução dos códigos climáticos
+// ------------------------------
+var weatherTranslations = map[int]string{
+	0:  "Céu limpo",
+	1:  "Principalmente limpo",
+	2:  "Parcialmente nublado",
+	3:  "Nublado",
+	45: "Nevoeiro",
+	48: "Nevoeiro depositante",
+	51: "Garoa leve",
+	53: "Garoa moderada",
+	55: "Garoa densa",
+	61: "Chuva fraca",
+	63: "Chuva moderada",
+	65: "Chuva forte",
+	71: "Neve leve",
+	73: "Neve moderada",
+	75: "Neve forte",
+	77: "Granizo",
+	80: "Aguaceiros fracos",
+	81: "Aguaceiros moderados",
+	82: "Aguaceiros fortes",
+	95: "Tempestade",
+	96: "Tempestade com granizo leve",
+	99: "Tempestade com granizo forte",
 }
 
+func translateWeatherCode(code float64) string {
+	return weatherTranslations[int(code)]
+}
 
+type WeatherPayload struct {
+	City      string  `json:"city,omitempty"`
+	Latitude  float64 `json:"latitude,omitempty"`
+	Longitude float64 `json:"longitude,omitempty"`
+
+	Current map[string]interface{}   `json:"current,omitempty"`
+	Hourly  []map[string]interface{} `json:"hourly,omitempty"`
+	Daily   []map[string]interface{} `json:"daily,omitempty"`
+
+	Source string      `json:"source,omitempty"`
+	Raw    interface{} `json:"raw,omitempty"`
+}
+
+// ------------------------------
+// Helper para converter número
+// ------------------------------
+func getFloat(v any) (float64, bool) {
+	switch t := v.(type) {
+	case float64:
+		return t, true
+	case float32:
+		return float64(t), true
+	case int:
+		return float64(t), true
+	case int64:
+		return float64(t), true
+	case string:
+		f, err := strconv.ParseFloat(t, 64)
+		if err == nil {
+			return f, true
+		}
+	}
+	return 0, false
+}
+
+// -----------------------------------------------------------
+// PROCESSADOR COMPLETO (current + hourly(24h) + daily + raw)
+// -----------------------------------------------------------
 func ProcessWeather(raw map[string]interface{}) (*WeatherPayload, error) {
 
-	getFloat := func(v any) (float64, bool) {
-		switch t := v.(type) {
-		case float64:
-			return t, true
-		case float32:
-			return float64(t), true
-		case int:
-			return float64(t), true
-		case int64:
-			return float64(t), true
-		case string:
-			f, err := strconv.ParseFloat(t, 64)
-			if err == nil {
-				return f, true
-			}
-			return 0, false
-		default:
-			return 0, false
-		}
-	}
-
-	getFloatKey := func(key string) (float64, bool) {
-		if v, ok := raw[key]; ok {
-			return getFloat(v)
-		}
-		return 0, false
-	}
-
 	city, _ := raw["city"].(string)
-	lat, _ := getFloatKey("latitude")
-	lon, _ := getFloatKey("longitude")
-	temp, hasTemp := getFloatKey("temperature")
-	humidity, _ := getFloatKey("humidity")
-	wind, _ := getFloatKey("wind_speed")
-	cloud, _ := getFloatKey("cloud_cover")
-	precip, _ := getFloatKey("precipitation")
-	apparent, _ := getFloatKey("apparent_temperature")
+	lat, _ := getFloat(raw["latitude"])
+	lon, _ := getFloat(raw["longitude"])
+
+	// ------------------------
+	// CURRENT
+	// ------------------------
+	currentRaw, ok := raw["current"].(map[string]interface{})
+	if !ok {
+		return nil, errors.New("payload não contém bloco 'current'")
+	}
+
+	current := make(map[string]interface{})
+	for k, v := range currentRaw {
+		current[k] = v
+	}
+	// traduz códigos atuais
+	if code, ok := current["weather_code"]; ok {
+		if f, ok := getFloat(code); ok {
+			current["weather_description"] = translateWeatherCode(f)
+		}
+	}
 
 	// timestamp
-	var ts int64
-	switch t := raw["timestamp"].(type) {
-	case float64:
-		ts = int64(t)
-	case int64:
-		ts = t
-	case string:
-		parsed, err := strconv.ParseInt(t, 10, 64)
-		if err == nil {
-			ts = parsed
+	if tsRaw, ok := current["timestamp"]; ok {
+		switch t := tsRaw.(type) {
+		case float64:
+			current["timestamp"] = int64(t)
+		case int64:
+			// já está ok
+		case string:
+			if parsed, err := strconv.ParseInt(t, 10, 64); err == nil {
+				current["timestamp"] = parsed
+			}
 		}
 	}
-	if ts == 0 {
-		ts = time.Now().Unix()
+
+	// ------------------------
+	// HOURLY — PRIMEIRAS 24H
+	// ------------------------
+	hourlyRaw, ok := raw["hourly"].([]interface{})
+	if !ok {
+		return nil, errors.New("payload não contém bloco 'hourly' no formato esperado")
 	}
 
-	if !hasTemp {
-		return nil, errors.New("campo 'temperature' ausente ou inválido")
+	hourly := make([]map[string]interface{}, 0, len(hourlyRaw))
+	limit := 24
+	for i, item := range hourlyRaw {
+		if i >= limit {
+			break
+		}
+		rec, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		// traduz códigos
+		if code, ok := rec["weather_code"]; ok {
+			if f, ok := getFloat(code); ok {
+				rec["weather_description"] = translateWeatherCode(f)
+			}
+		}
+		hourly = append(hourly, rec)
 	}
 
+	// ------------------------
+	// DAILY
+	// ------------------------
+	dailyRaw, ok := raw["daily"].([]interface{})
+	if !ok {
+		return nil, errors.New("payload não contém bloco 'daily'")
+	}
+
+	daily := make([]map[string]interface{}, 0, len(dailyRaw))
+	for _, item := range dailyRaw {
+		rec, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		// traduz códigos
+		if code, ok := rec["weather_code"]; ok {
+			if f, ok := getFloat(code); ok {
+				rec["weather_description"] = translateWeatherCode(f)
+			}
+		}
+		daily = append(daily, rec)
+	}
+
+	// ------------------------
+	// MONTAR PAYLOAD FINAL
+	// ------------------------
 	payload := &WeatherPayload{
-		City:        city,
-		Latitude:    lat,
-		Longitude:   lon,
-		Timestamp:   ts,
-		Temperature: temp,
-		Humidity:    humidity,
-		WindSpeed:   wind,
-		CloudCover:  cloud,
-		Precipitation: precip,
-		ApparentTemperature: apparent,
-		Source:      "python-producer",
-		Raw:         raw,
+		City:    city,
+		Latitude:  lat,
+		Longitude: lon,
+		Current: current,
+		Hourly:  hourly,
+		Daily:   daily,
+		Source:  "python-producer",
+		Raw:     raw,
 	}
 
 	return payload, nil

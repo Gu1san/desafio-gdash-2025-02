@@ -1,50 +1,46 @@
 import { Type } from 'class-transformer';
-import { IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsObject,
+  IsArray,
+} from 'class-validator';
 
 export class CreateWeatherLogDto {
+  @IsOptional()
   @IsString()
-  city!: string;
+  city?: string;
 
-  @Type(() => Number)
+  @IsOptional()
   @IsNumber()
-  latitude!: number;
+  latitude?: number;
 
-  @Type(() => Number)
+  @IsOptional()
   @IsNumber()
-  longitude!: number;
+  longitude?: number;
 
-  @Type(() => Number)
-  @IsNumber()
-  timestamp!: number;
+  @IsOptional()
+  current?: Record<string, any>; // ou interface específica
 
-  @Type(() => Number)
-  @IsNumber()
-  temperature!: number;
+  @IsOptional()
+  @IsArray()
+  @Type(() => Object)
+  @IsObject({ each: true })
+  hourly?: any[];
 
-  @Type(() => Number)
-  @IsNumber()
-  humidity!: number;
+  @IsOptional()
+  @IsArray()
+  @Type(() => Object)
+  @IsObject({ each: true })
+  daily?: any[];
 
-  @Type(() => Number)
-  @IsNumber()
-  wind_speed!: number;
-
-  @Type(() => Number)
-  @IsNumber()
-  cloud_cover!: number;
-
-  @Type(() => Number)
-  @IsNumber()
-  precipitation!: number;
-
-  @Type(() => Number)
-  @IsNumber()
-  apparent_temperature!: number;
-
-  @IsString()
-  source!: string;
-
+  // 🔹 Payload completo bruto
   @IsOptional()
   @IsObject()
   raw?: any;
+
+  @IsOptional()
+  @IsString()
+  source?: string;
 }
