@@ -40,43 +40,69 @@ export class WeatherService {
   }
 
   async generateInsights() {
-    const logs = await this.weatherModel.find().lean();
-    if (!logs.length) return { error: 'No data available yet' };
+    const logs = await this.getLatest();
+    if (logs == null) return { error: 'No data available yet' };
 
-    // Mantém apenas registros válidos contendo "current"
-    const validLogs = logs.filter(
-      (l) =>
-        l &&
-        l.current &&
-        typeof l.current.temperature === 'number' &&
-        typeof l.current.timestamp !== 'undefined',
-    );
+    if (!logs.current) throw new Error("Registro não possui bloco 'current'.");
 
-    if (validLogs.length === 0) {
-      throw new Error('Nenhum registro válido encontrado para gerar insights.');
-    }
+    if (!logs.hourly || !Array.isArray(logs.hourly))
+      throw new Error("Registro não possui bloco 'hourly' válido.");
 
-    // Prepara dataset que será enviado para a IA
-    const dataForAI = validLogs.map((l) => ({
-      city: l.city,
-      timestamp: l.current!.timestamp,
-      temperature: l.current!.temperature,
-      humidity: l.current!.humidity,
-      wind_speed: l.current!.wind_speed,
-      cloud_cover: l.current!.cloud_cover,
-      precipitation: l.current!.precipitation,
-      apparent_temperature: l.current!.apparent_temperature,
+    if (!logs.daily || !Array.isArray(logs.daily))
+      throw new Error("Registro não possui bloco 'daily' válido.");
+
+    /* ============================================================
+      1) NORMALIZAÇÃO DO DATASET PARA A IA
+     ============================================================ */
+
+    const currentData = {
+      timestamp: logs.current.timestamp,
+      temperature: logs.current.temperature,
+      humidity: logs.current.humidity,
+      wind_speed: logs.current.wind_speed,
+      cloud_cover: logs.current.cloud_cover,
+      precipitation: logs.current.precipitation,
+      apparent_temperature: logs.current.apparent_temperature,
+    };
+
+    const hourlyData = logs.hourly.map((h: any) => ({
+      timestamp: h.timestamp,
+      temperature: h.temperature,
+      humidity: h.humidity,
+      wind_speed: h.wind_speed,
+      cloud_cover: h.cloud_cover,
+      precipitation: h.precipitation,
+      apparent_temperature: h.apparent_temperature,
     }));
+
+    const dailyData = logs.daily.map((d: any) => ({
+      timestamp: d.timestamp,
+      temp_max: d.temp_max,
+      temp_min: d.temp_min,
+      weather_code: d.weather_code,
+      weather_description: d.weather_description,
+    }));
+
+    /* ============================================================
+      2) MONTA PROMPT PARA A IA
+     ============================================================ */
+
+    const dataForAI = {
+      city: logs.city,
+      current: currentData,
+      hourly: hourlyData,
+      daily: dailyData,
+    };
 
     const prompt = `
     Você é um especialista em climatologia.
-    Com base no dataset abaixo, gere insights acionáveis.
+    Gere insights úteis e acionáveis com base no dataset abaixo.
 
-    Retorne APENAS um JSON no seguinte formato:
+    Retorne APENAS um JSON no formato:
 
     {
       "summary": string,
-      "hottestDay": string (ISO date),
+      "hottestDay": string,
       "precipitation": number,
       "tempTrend": "Alta" | "Moderada" | "Baixa",
       "apparentTemperature": number
@@ -85,6 +111,10 @@ export class WeatherService {
     DATASET:
     ${JSON.stringify(dataForAI, null, 2)}
   `;
+
+    /* ============================================================
+      3) CHAMADA PARA OPENAI
+     ============================================================ */
 
     const aiResponse = await this.openai.chat.completions.create({
       model: process.env.MODEL_WEATHER ?? 'openai/gpt-oss-120b',
@@ -97,14 +127,18 @@ export class WeatherService {
       throw new Error('OpenAI response has no textual content to parse.');
     }
 
-    const insightsJSON = JSON.parse(content);
+    const parsed = JSON.parse(content);
+
+    /* ============================================================
+      4) SALVA NO BANCO
+     ============================================================ */
 
     const insights = await this.insightsModel.create({
-      summary: insightsJSON.summary,
-      hottestDay: insightsJSON.hottestDay,
-      precipitation: insightsJSON.precipitation,
-      tempTrend: insightsJSON.tempTrend,
-      apparentTemperature: insightsJSON.apparentTemperature,
+      summary: parsed.summary,
+      hottestDay: parsed.hottestDay,
+      precipitation: parsed.precipitation,
+      tempTrend: parsed.tempTrend,
+      apparentTemperature: parsed.apparentTemperature,
     });
 
     return insights;
@@ -113,7 +147,69 @@ export class WeatherService {
   async exportCsv(): Promise<string> {
     const logs = await this.weatherModel.find().lean();
 
+    const flattened: any[] = [];
+
+    logs.forEach((log) => {
+      // CURRENT
+      if (log.current) {
+        flattened.push({
+          type: 'current',
+          city: log.city,
+          latitude: log.latitude,
+          longitude: log.longitude,
+          timestamp: log.current.timestamp,
+          temperature: log.current.temperature,
+          humidity: log.current.humidity,
+          wind_speed: log.current.wind_speed,
+          cloud_cover: log.current.cloud_cover,
+          precipitation: log.current.precipitation,
+          apparent_temperature: log.current.apparent_temperature,
+          source: 'current',
+          createdAt: log.createdAt,
+        });
+      }
+
+      // HOURLY
+      log.hourly?.forEach((item: any) => {
+        flattened.push({
+          type: 'hourly',
+          city: log.city,
+          latitude: log.latitude,
+          longitude: log.longitude,
+          timestamp: item.timestamp,
+          temperature: item.temperature,
+          humidity: item.humidity,
+          wind_speed: item.wind_speed,
+          cloud_cover: item.cloud_cover,
+          precipitation: item.precipitation,
+          apparent_temperature: item.apparent_temperature,
+          source: 'hourly',
+          createdAt: log.createdAt,
+        });
+      });
+
+      // DAILY
+      log.daily?.forEach((item: any) => {
+        flattened.push({
+          type: 'daily',
+          city: log.city,
+          latitude: log.latitude,
+          longitude: log.longitude,
+          timestamp: item.timestamp,
+          temperature: item.temperature,
+          humidity: item.humidity,
+          wind_speed: item.wind_speed,
+          cloud_cover: item.cloud_cover,
+          precipitation: item.precipitation,
+          apparent_temperature: item.apparent_temperature,
+          source: 'daily',
+          createdAt: log.createdAt,
+        });
+      });
+    });
+
     const fields = [
+      'type',
       'city',
       'latitude',
       'longitude',
@@ -128,7 +224,7 @@ export class WeatherService {
       'createdAt',
     ];
 
-    return json2csv.parse(logs, { fields });
+    return json2csv.parse(flattened, { fields });
   }
 
   async exportXlsx() {
@@ -138,25 +234,79 @@ export class WeatherService {
     const sheet = workbook.addWorksheet('Weather Data');
 
     sheet.columns = [
-      { header: 'City', key: 'city', width: 20 },
+      { header: 'Type', key: 'type', width: 10 },
+      { header: 'City', key: 'city', width: 18 },
       { header: 'Latitude', key: 'latitude', width: 12 },
       { header: 'Longitude', key: 'longitude', width: 12 },
-      { header: 'Timestamp', key: 'timestamp', width: 15 },
+      { header: 'Timestamp', key: 'timestamp', width: 18 },
       { header: 'Temperature', key: 'temperature', width: 14 },
-      { header: 'Humidity', key: 'humidity', width: 10 },
-      { header: 'Wind Speed', key: 'wind_speed', width: 12 },
-      { header: 'Cloud Cover', key: 'cloud_cover', width: 12 },
-      { header: 'Precipitation', key: 'precipitation', width: 10 },
-      {
-        header: 'Appearent Temperature',
-        key: 'apparent_temperature',
-        width: 12,
-      },
-      { header: 'Source', key: 'source', width: 15 },
+      { header: 'Humidity', key: 'humidity', width: 12 },
+      { header: 'Wind Speed', key: 'wind_speed', width: 14 },
+      { header: 'Cloud Cover', key: 'cloud_cover', width: 14 },
+      { header: 'Precipitation', key: 'precipitation', width: 14 },
+      { header: 'Apparent Temp', key: 'apparent_temperature', width: 16 },
+      { header: 'Source', key: 'source', width: 14 },
       { header: 'Created At', key: 'createdAt', width: 22 },
     ];
 
-    logs.forEach((log) => sheet.addRow(log));
+    logs.forEach((log) => {
+      // CURRENT
+      if (log.current) {
+        sheet.addRow({
+          type: 'current',
+          city: log.city,
+          latitude: log.latitude,
+          longitude: log.longitude,
+          timestamp: log.current.timestamp,
+          temperature: log.current.temperature,
+          humidity: log.current.humidity,
+          wind_speed: log.current.wind_speed,
+          cloud_cover: log.current.cloud_cover,
+          precipitation: log.current.precipitation,
+          apparent_temperature: log.current.apparent_temperature,
+          source: 'current',
+          createdAt: log.createdAt,
+        });
+      }
+
+      // HOURLY
+      log.hourly?.forEach((item: any) =>
+        sheet.addRow({
+          type: 'hourly',
+          city: log.city,
+          latitude: log.latitude,
+          longitude: log.longitude,
+          timestamp: item.timestamp,
+          temperature: item.temperature,
+          humidity: item.humidity,
+          wind_speed: item.wind_speed,
+          cloud_cover: item.cloud_cover,
+          precipitation: item.precipitation,
+          apparent_temperature: item.apparent_temperature,
+          source: 'hourly',
+          createdAt: log.createdAt,
+        }),
+      );
+
+      // DAILY
+      log.daily?.forEach((item: any) =>
+        sheet.addRow({
+          type: 'daily',
+          city: log.city,
+          latitude: log.latitude,
+          longitude: log.longitude,
+          timestamp: item.timestamp,
+          temperature: item.temperature,
+          humidity: item.humidity,
+          wind_speed: item.wind_speed,
+          cloud_cover: item.cloud_cover,
+          precipitation: item.precipitation,
+          apparent_temperature: item.apparent_temperature,
+          source: 'daily',
+          createdAt: log.createdAt,
+        }),
+      );
+    });
 
     const buffer = await workbook.xlsx.writeBuffer();
     return { buffer };

@@ -1,3 +1,4 @@
+// src/routes/PrivateRoute.tsx
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import type { JSX } from "react";
@@ -7,8 +8,11 @@ export default function ProtectedRoute({
 }: {
   children: JSX.Element;
 }) {
-  const { user } = useAuth();
-  console.log("ProtectedRoute user:", user);
-  if (!user) return <Navigate to="/login" replace />;
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
   return children;
 }

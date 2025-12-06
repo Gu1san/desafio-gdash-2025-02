@@ -1,11 +1,11 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useState } from "react";
 import type {
   IWeatherCurrent,
   IWeatherDay,
   IWeatherHour,
   IWeatherLog,
 } from "@/types/weather";
-import { getWeatherLogs } from "@/services/weatherService";
+import { exportWeatherData, getWeatherLogs } from "@/services/weatherService";
 
 interface WeatherContextData {
   logs: IWeatherLog;
@@ -14,6 +14,7 @@ interface WeatherContextData {
   daily: IWeatherDay[];
   isLoading: boolean;
   refresh: () => Promise<void>;
+  exportData: (format: "xlsx" | "csv") => Promise<void>;
 }
 
 const WeatherContext = createContext<WeatherContextData>(
@@ -72,9 +73,26 @@ export const WeatherProvider = ({
     return Number(n.toFixed(1));
   }
 
+  const exportData = async (format: "xlsx" | "csv") => {
+    try {
+      const blob = await exportWeatherData(format);
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = `weather-data.${format}`;
+      link.click();
+
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Erro ao exportar:", error);
+    }
+  };
+
   return (
     <WeatherContext.Provider
-      value={{ logs, current, hourly, daily, isLoading, refresh }}
+      value={{ logs, current, hourly, daily, isLoading, refresh, exportData }}
     >
       {children}
     </WeatherContext.Provider>

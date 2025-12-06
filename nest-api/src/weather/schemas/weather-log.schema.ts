@@ -30,6 +30,12 @@ export class WeatherLog {
 
   @Prop()
   source?: string;
+
+  @Prop()
+  createdAt?: Date;
+
+  @Prop()
+  updatedAt?: Date;
 }
 
 export const WeatherLogSchema = SchemaFactory.createForClass(WeatherLog);

@@ -1,9 +1,26 @@
-import { useState, createContext, useContext, type ReactNode } from "react";
-import api from "../services/api";
-import Cookies from "js-cookie";
+import {
+  createContext,
+  useContext,
+  useState,
+  type ReactNode,
+  useEffect,
+} from "react";
+
+import {
+  loginRequest,
+  fetchUserProfile,
+  saveToken,
+  clearToken,
+  saveUser,
+  loadUser,
+  clearUser,
+  getToken,
+} from "@/services/authService";
 
 type AuthContextType = {
   user: any;
+  loading: boolean;
+  isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 };
@@ -11,35 +28,65 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<any>(() => {
-    const u = localStorage.getItem("user");
-    return u ? JSON.parse(u) : null;
-  });
+  const [user, setUser] = useState<any>(loadUser());
+  const [loading, setLoading] = useState(true);
+
+  const isAuthenticated = !!localStorage.getItem("token");
+
+  // Recarrega usuário se houver token válido
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    (async () => {
+      try {
+        const profile = await fetchUserProfile();
+        setUser(profile);
+      } catch {
+        clearToken();
+        clearUser();
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   async function login(email: string, password: string) {
-    const res = await api.post("/auth/login", { email, password });
-    const token = res.data.access_token;
-    if (!token) throw new Error("Token não recebido");
-    Cookies.set("token", token);
-    localStorage.setItem("token", token);
-    // opcional: obter profile
-    const profile = await api
-      .get("/users/me")
-      .then((r) => r.data)
-      .catch(() => null);
-    setUser(profile);
-    if (profile) localStorage.setItem("user", JSON.stringify(profile));
+    const { access_token } = await loginRequest(email, password);
+
+    if (!access_token) throw new Error("Token não recebido");
+
+    // salva token
+    saveToken(access_token);
+
+    try {
+      const profile = await fetchUserProfile();
+      setUser(profile);
+      saveUser(profile);
+    } catch (err) {
+      console.error("Erro ao buscar perfil:", err);
+    }
   }
 
   function logout() {
-    Cookies.remove("token");
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    clearToken();
+    clearUser();
     setUser(null);
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        isAuthenticated,
+        login,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

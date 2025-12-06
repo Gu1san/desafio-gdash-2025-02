@@ -11,15 +11,31 @@ import {
 } from "recharts";
 import { useWeather } from "@/contexts/WeatherContext";
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { useInsights } from "@/contexts/InsightsContext";
 
 export default function Dashboard() {
-  const { current, hourly, daily, isLoading, refresh } = useWeather();
+  const {
+    current,
+    hourly,
+    daily,
+    isLoading: weatherLoading,
+    refresh,
+    exportData,
+  } = useWeather();
+
+  const {
+    insights,
+    isLoading: insightsLoading,
+    refreshInsights,
+    regenerate,
+  } = useInsights();
 
   useEffect(() => {
     refresh();
   }, []);
 
-  if (isLoading || !current)
+  if (weatherLoading || !current)
     return <p className="p-6">Carregando dados do clima...</p>;
 
   /* ============================
@@ -57,12 +73,16 @@ export default function Dashboard() {
           INSIGHTS DE IA
       ============================ */}
       <Card className="lg:col-span-3">
-        <CardHeader>
+        <CardHeader className="flex flex-row justify-between">
           <CardTitle className="text-2xl">Insights de IA</CardTitle>
+          <Button onClick={regenerate}>Regerar insights</Button>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {/* {insights ? (
-            <>
+
+        <CardContent>
+          {insightsLoading ? (
+            <p className="text-muted-foreground">Gerando insights...</p>
+          ) : insights ? (
+            <div className="space-y-3">
               <p>
                 <strong>Resumo:</strong> {insights.summary}
               </p>
@@ -70,18 +90,37 @@ export default function Dashboard() {
                 <strong>Dia mais quente:</strong> {insights.hottestDay}
               </p>
               <p>
-                <strong>Precipitação acumulada:</strong>{" "}
-                {insights.precipitation}mm
+                <strong>Precipitação:</strong> {insights.precipitation}mm
               </p>
               <p>
                 <strong>Tendência de temperatura:</strong> {insights.tempTrend}
               </p>
-            </>
+              <p>
+                <strong>Sensação térmica:</strong>{" "}
+                {insights.apparentTemperature}°C
+              </p>
+            </div>
           ) : (
-            <p className="text-muted-foreground">Gerando insights...</p>
-          )} */}
+            <p className="text-muted-foreground">Nenhum insight disponível.</p>
+          )}
         </CardContent>
       </Card>
+
+      <div className="flex gap-3 mb-6">
+        <Button
+          onClick={() => exportData("csv")}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md"
+        >
+          Exportar CSV
+        </Button>
+
+        <Button
+          onClick={() => exportData("xlsx")}
+          className="px-4 py-2 bg-green-600 text-white rounded-md"
+        >
+          Exportar XLSX
+        </Button>
+      </div>
 
       {/* ============================
           CARD MAIOR — CURRENT WEATHER
