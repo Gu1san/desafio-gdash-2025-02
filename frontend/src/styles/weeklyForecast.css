@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  /* Container geral da grade */
+  .weekly-grid {
+    @apply lg:col-span-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4;
+  }
+
+  /* Card individual */
+  .weekly-card {
+    @apply text-center py-4 rounded-2xl
+           bg-white/80 dark:bg-neutral-900/80
+           border border-neutral-200 dark:border-neutral-700
+           backdrop-blur flex flex-col items-center gap-2;
+  }
+
+  /* Nome do dia */
+  .weekly-day {
+    @apply font-semibold;
+  }
+
+  /* Container das temperaturas */
+  .weekly-temps {
+    @apply flex flex-row gap-2 text-sm font-medium;
+  }
+
+  /* Temp máxima */
+  .weekly-max {
+    @apply flex items-center gap-1 text-red-600 dark:text-red-400;
+  }
+
+  /* Temp mínima */
+  .weekly-min {
+    @apply flex items-center gap-1 text-blue-600 dark:text-blue-400;
+  }
+}

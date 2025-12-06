@@ -1,21 +1,20 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  ResponsiveContainer,
-  Tooltip,
-} from "recharts";
-import { useWeather } from "@/contexts/WeatherContext";
-import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ModeToggle";
+import CurrentWeatherCard from "@/components/CurrentWeatherCard";
+import WeeklyForecast from "@/components/WeeklyForecast";
+
+import { useWeather } from "@/contexts/WeatherContext";
 import { useInsights } from "@/contexts/InsightsContext";
+
+import { useEffect } from "react";
+import ChartCard from "@/components/ChartCard";
 
 export default function Dashboard() {
   const {
+    logs,
     current,
     hourly,
     daily,
@@ -24,12 +23,7 @@ export default function Dashboard() {
     exportData,
   } = useWeather();
 
-  const {
-    insights,
-    isLoading: insightsLoading,
-    refreshInsights,
-    regenerate,
-  } = useInsights();
+  const { insights, isLoading: insightsLoading, regenerate } = useInsights();
 
   useEffect(() => {
     refresh();
@@ -38,26 +32,12 @@ export default function Dashboard() {
   if (weatherLoading || !current)
     return <p className="p-6">Carregando dados do clima...</p>;
 
-  /* ============================
-     FORMATADORES
-  ============================ */
   const formatHour = (ts: number) =>
     new Date(ts * 1000).toLocaleTimeString("pt-BR", {
       hour: "2-digit",
       minute: "2-digit",
     });
 
-  const formatDay = (ts: number) =>
-    new Date(ts * 1000).toLocaleDateString("pt-BR", {
-      weekday: "short",
-      day: "2-digit",
-      month: "2-digit",
-    });
-
-  /* ============================
-     PREPARAÇÃO DOS DADOS DO CHART
-     (já tratados pelo useWeather, mas garantimos estrutura)
-  ============================ */
   const hourlyChartData = hourly.map((h) => ({
     timestamp: h.timestamp,
     temperature: h.temperature,
@@ -68,21 +48,19 @@ export default function Dashboard() {
   }));
 
   return (
-    <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* ============================
-          INSIGHTS DE IA
-      ============================ */}
-      <Card className="lg:col-span-3">
-        <CardHeader className="flex flex-row justify-between">
-          <CardTitle className="text-2xl">Insights de IA</CardTitle>
+    <div className="dashboard-grid">
+      {/* INSIGHTS */}
+      <Card className="insights-card">
+        <CardHeader className="insights-header">
+          <CardTitle className="insights-title">Insights de IA</CardTitle>
           <Button onClick={regenerate}>Regerar insights</Button>
         </CardHeader>
 
         <CardContent>
           {insightsLoading ? (
-            <p className="text-muted-foreground">Gerando insights...</p>
+            <p className="insights-loading">Gerando insights...</p>
           ) : insights ? (
-            <div className="space-y-3">
+            <div className="insights-content">
               <p>
                 <strong>Resumo:</strong> {insights.summary}
               </p>
@@ -101,67 +79,28 @@ export default function Dashboard() {
               </p>
             </div>
           ) : (
-            <p className="text-muted-foreground">Nenhum insight disponível.</p>
+            <p className="insights-loading">Nenhum insight disponível.</p>
           )}
         </CardContent>
       </Card>
 
-      <div className="flex gap-3 mb-6">
-        <Button
-          onClick={() => exportData("csv")}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md"
-        >
+      {/* BOTÕES DE EXPORTAÇÃO */}
+      <div className="export-buttons">
+        <Button onClick={() => exportData("csv")} className="export-btn-csv">
           Exportar CSV
         </Button>
 
-        <Button
-          onClick={() => exportData("xlsx")}
-          className="px-4 py-2 bg-green-600 text-white rounded-md"
-        >
+        <Button onClick={() => exportData("xlsx")} className="export-btn-xlsx">
           Exportar XLSX
         </Button>
       </div>
 
-      {/* ============================
-          CARD MAIOR — CURRENT WEATHER
-      ============================ */}
-      <Card className="lg:col-span-3">
-        <CardHeader>
-          <CardTitle className="text-xl">Clima Atual</CardTitle>
-        </CardHeader>
+      <ThemeToggle />
 
-        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Metric label="Temperatura" value={`${current.temperature}°C`} />
-          <Metric
-            label="Sensação"
-            value={`${current.apparent_temperature}°C`}
-          />
-          <Metric label="Umidade" value={`${current.humidity}%`} />
-          <Metric label="Vento" value={`${current.wind_speed} km/h`} />
-          <Metric label="Condição" value={current.weather_description} />
-        </CardContent>
-      </Card>
+      <CurrentWeatherCard current={current} location={logs.city} />
 
-      {/* ============================
-          MINI CARDS — 7 DIAS
-      ============================ */}
-      <div className="lg:col-span-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-        {daily.map((d) => (
-          <Card key={d.timestamp} className="text-center py-4">
-            <p className="font-semibold">{formatDay(d.timestamp)}</p>
-            <p className="text-sm text-muted-foreground">
-              {d.weather_description}
-            </p>
-            <p className="mt-2 text-lg">
-              {d.temp_max}° / {d.temp_min}°
-            </p>
-          </Card>
-        ))}
-      </div>
+      <WeeklyForecast daily={daily} />
 
-      {/* ============================
-          GRÁFICOS — HOURLY
-      ============================ */}
       <ChartCard
         title="Temperatura (°C)"
         data={hourlyChartData}
@@ -181,6 +120,7 @@ export default function Dashboard() {
         data={hourlyChartData}
         dataKey="wind_speed"
         format={formatHour}
+        type="bar"
       />
 
       <ChartCard
@@ -188,6 +128,7 @@ export default function Dashboard() {
         data={hourlyChartData}
         dataKey="precipitation"
         format={formatHour}
+        type="bar"
       />
 
       <ChartCard
@@ -195,56 +136,8 @@ export default function Dashboard() {
         data={hourlyChartData}
         dataKey="cloud_cover"
         format={formatHour}
+        type="area"
       />
     </div>
-  );
-}
-
-/* ============================
-    COMPONENTES
-============================ */
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="text-center">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="text-xl font-semibold">{value}</p>
-    </div>
-  );
-}
-
-function ChartCard({
-  title,
-  data,
-  dataKey,
-  format,
-}: {
-  title: string;
-  data: any[];
-  dataKey: string;
-  format: (ts: number) => string;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={data}>
-            <XAxis dataKey="timestamp" tickFormatter={format} stroke="#888" />
-            <YAxis stroke="#888" />
-            <Tooltip labelFormatter={(value) => format(Number(value))} />
-            <Line
-              type="monotone"
-              dataKey={dataKey}
-              stroke="#2563eb"
-              strokeWidth={2}
-              dot={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
   );
 }

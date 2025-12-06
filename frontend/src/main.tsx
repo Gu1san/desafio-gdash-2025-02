@@ -8,35 +8,35 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import "./styles/index.css";
 import { AuthProvider } from "./contexts/AuthContext";
 import { WeatherProvider } from "./contexts/WeatherContext";
-import App from "./App";
 import { InsightsProvider } from "./contexts/InsightsContext";
+import App from "./App";
+import { ThemeProvider } from "./components/ThemeProvider";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <AuthProvider>
-      <WeatherProvider>
-        <InsightsProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/login" element={<Login />} />
+    <ThemeProvider>
+      <AuthProvider>
+        <WeatherProvider>
+          <InsightsProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/login" element={<Login />} />
 
-              {/* Layout com sidebar */}
-              <Route
-                element={
-                  <ProtectedRoute>
-                    <App />
-                  </ProtectedRoute>
-                }
-              >
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/users" element={<Users />} />
-                <Route path="/weather" element={<div>Weather</div>} />
-                <Route path="/settings" element={<div>Settings</div>} />
-              </Route>
-            </Routes>
-          </BrowserRouter>
-        </InsightsProvider>
-      </WeatherProvider>
-    </AuthProvider>
+                <Route
+                  element={
+                    <ProtectedRoute>
+                      <App />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/users" element={<Users />} />
+                </Route>
+              </Routes>
+            </BrowserRouter>
+          </InsightsProvider>
+        </WeatherProvider>
+      </AuthProvider>
+    </ThemeProvider>
   </React.StrictMode>
 );

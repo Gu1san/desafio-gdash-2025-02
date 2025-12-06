@@ -1,57 +1,57 @@
-import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, CloudRain, Settings } from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarFooter,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+} from "@/components/ui/sidebar";
+import { LayoutDashboard, Users, LogOut } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
-export default function Sidebar() {
-  const { pathname } = useLocation();
+export default function AppSideBar(
+  props: React.ComponentProps<typeof Sidebar>
+) {
+  const { logout } = useAuth();
 
   const menu = [
-    {
-      label: "Dashboard",
-      icon: <LayoutDashboard size={20} />,
-      path: "/",
-    },
-    {
-      label: "Usuários",
-      icon: <Users size={20} />,
-      path: "/users",
-    },
-    {
-      label: "Clima",
-      icon: <CloudRain size={20} />,
-      path: "/weather",
-    },
-    {
-      label: "Configurações",
-      icon: <Settings size={20} />,
-      path: "/settings",
-    },
+    { label: "Dashboard", icon: LayoutDashboard, path: "/" },
+    { label: "Usuários", icon: Users, path: "/users" },
   ];
 
   return (
-    <aside className="w-64 h-screen bg-white border-r flex flex-col">
-      <div className="p-6 font-bold text-xl">GDASH</div>
+    <Sidebar collapsible="offcanvas" {...props}>
+      <SidebarHeader>
+        <div className="px-4 py-3 font-bold text-lg">GDASH</div>
+      </SidebarHeader>
 
-      <nav className="flex flex-col gap-1 px-3">
-        {menu.map((item) => {
-          const active = pathname === item.path;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-3 rounded-xl p-3 transition
-                ${
-                  active
-                    ? "bg-gray-200 text-black font-medium"
-                    : "hover:bg-gray-100"
-                }
-              `}
-            >
-              {item.icon}
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-    </aside>
+      <SidebarContent>
+        <SidebarMenu>
+          {menu.map((item) => (
+            <SidebarMenuItem key={item.path}>
+              <SidebarMenuButton asChild>
+                <Link to={item.path}>
+                  <item.icon className="size-5" />
+                  <span>{item.label}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarContent>
+
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={logout}>
+              <LogOut className="size-5" />
+              <span>Sair</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   );
 }

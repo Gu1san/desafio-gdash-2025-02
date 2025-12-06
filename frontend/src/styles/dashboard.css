@@ -1,0 +1,43 @@
+/* ====== GRID PRINCIPAL DO DASHBOARD ====== */
+.dashboard-grid {
+  @apply p-6 grid grid-cols-1 lg:grid-cols-3 gap-6;
+}
+
+/* ====== CARD DE INSIGHTS ====== */
+.insights-card {
+  @apply lg:col-span-3;
+}
+
+.insights-header {
+  @apply flex flex-row justify-between;
+}
+
+.insights-title {
+  @apply text-2xl;
+}
+
+.insights-loading {
+  @apply text-muted-foreground;
+}
+
+.insights-content {
+  @apply space-y-3;
+}
+
+/* ====== BOTÕES DE EXPORTAÇÃO ====== */
+.export-buttons {
+  @apply flex gap-3 mb-6;
+}
+
+.export-btn-csv {
+  @apply px-4 py-2 bg-blue-600 text-white rounded-md;
+}
+
+.export-btn-xlsx {
+  @apply px-4 py-2 bg-green-600 text-white rounded-md;
+}
+
+/* ====== SEÇÃO DE GRÁFICOS ====== */
+.chart-card {
+  /* Caso precise aplicar algo, deixe preparado */
+}
