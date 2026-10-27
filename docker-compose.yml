@@ -3,13 +3,16 @@ services:
     image: rabbitmq:3-management
     container_name: rabbitmq
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - '5672:5672'
+      - '15672:15672'
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
       interval: 5s
       timeout: 5s
       retries: 10
+    environment:
+      RABBITMQ_DEFAULT_USER: weather_user
+      RABBITMQ_DEFAULT_PASS: weather_pass_dev
 
   python-producer:
     build: ./python-producer
@@ -17,16 +20,21 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: weather_user
+      RABBITMQ_PASS: weather_pass_dev
+      PYTHONUNBUFFERED: '1'
 
   mongo:
     image: mongo:6
     container_name: mongo
     ports:
-      - "27017:27017"
+      - '27017:27017'
     volumes:
       - mongo-data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -35,14 +43,14 @@ services:
     build: ./nest-api
     container_name: nest-api
     ports:
-      - "3000:3000"
+      - '3000:3000'
     env_file:
       - ./nest-api/.env
     depends_on:
       mongo:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://127.0.0.1:3000/api/health || exit 1"]
+      test: ['CMD-SHELL', 'curl -f http://127.0.0.1:3000/api/health || exit 1']
       interval: 5s
       timeout: 5s
       retries: 5

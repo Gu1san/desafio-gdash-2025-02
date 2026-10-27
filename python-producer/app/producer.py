@@ -7,6 +7,8 @@ import time
 import requests_cache
 from retry_requests import retry
 
+import os
+
 # -----------------------
 # CONFIGURAÇÕES
 # -----------------------
@@ -14,7 +16,10 @@ from retry_requests import retry
 LAT = -19.9208
 LON = -43.9378
 QUEUE_NAME = "weather.raw"
-RABBITMQ_HOST = "rabbitmq"  # nome do serviço no Docker
+
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq")
+RABBITMQ_USER = os.getenv("RABBITMQ_USER", "weather_user")
+RABBITMQ_PASS = os.getenv("RABBITMQ_PASS", "weather_pass_dev")
 
 # -----------------------
 # CLIENTE OPEN METEO
@@ -138,12 +143,22 @@ def fetch_weather():
 # -----------------------
 
 def connect_with_retry(host, retries=10, delay=3):
+    credentials = pika.PlainCredentials(
+        RABBITMQ_USER,
+        RABBITMQ_PASS
+    )
+
     for i in range(retries):
         try:
-            return pika.BlockingConnection(pika.ConnectionParameters(host=host))
-        except Exception:
-            print(f"Tentativa {i+1}/{retries}: RabbitMQ não pronto ainda...")
+            params = pika.ConnectionParameters(
+                host=host,
+                credentials=credentials
+            )
+            return pika.BlockingConnection(params)
+        except Exception as e:
+            print(f"Tentativa {i+1}/{retries}: RabbitMQ não pronto ainda... ({e})")
             time.sleep(delay)
+
     raise Exception("RabbitMQ não ficou pronto a tempo")
 
 def publish_to_queue(data):
